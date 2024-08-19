@@ -12,14 +12,7 @@ app.use(express.json());
 app.use(cors());
 
 app.get("/", function (req, res) {
-    db.all("SELECT * FROM users", (err, rows) => {
-        if (err) {
-            console.error(err);
-            return;
-        }
-        console.log(rows);
-    });
-    res.send("Hola mundo");
+    res.send("OK");
 });
 
 // routes

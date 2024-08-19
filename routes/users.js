@@ -1,12 +1,11 @@
 const express = require("express");
 const fs = require("fs");
+const bcrypt = require("bcrypt");
 const users = express.Router();
 
-async function getAllUsers(
-    cols = "id, username, role, score, assists, matches, wins"
-) {
+async function getAllUsers(cols = "id, username, role") {
     return new Promise((resolve, reject) => {
-        global.db.all(`SELECT ${cols}, wins FROM users`, (err, rows) => {
+        global.db.all(`SELECT ${cols} FROM users`, (err, rows) => {
             if (err) {
                 console.error(err);
                 resolve([]);
@@ -36,8 +35,8 @@ async function getUser(
     id = null,
     cols = "id, username, role, score, assists, matches, wins"
 ) {
-    if (username) {
-        return new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
+        if (username) {
             global.db.all(
                 `SELECT ${cols} FROM users WHERE username = "${username}"`,
                 (err, rows) => {
@@ -45,12 +44,21 @@ async function getUser(
                         console.error(err);
                         resolve(null);
                     }
-                    resolve(rows[0] ? rows[0] : null);
+                    let p = rows[0];
+                    if (p) {
+                        p.rating = calcRating({
+                            score: p.score,
+                            assists: p.assists,
+                            matches: p.matches,
+                            wins: p.wins,
+                        });
+                        resolve(p);
+                    } else {
+                        resolve(null);
+                    }
                 }
             );
-        });
-    } else if (id) {
-        return new Promise((resolve, reject) => {
+        } else if (id) {
             global.db.all(
                 `SELECT ${cols} FROM users WHERE id = ${id}`,
                 (err, rows) => {
@@ -58,11 +66,76 @@ async function getUser(
                         console.error(err);
                         resolve(null);
                     }
-                    resolve(rows[0] ? rows[0] : null);
+                    let p = rows[0];
+                    if (p) {
+                        p.rating = calcRating({
+                            score: p.score,
+                            assists: p.assists,
+                            matches: p.matches,
+                            wins: p.wins,
+                        });
+                        resolve(p);
+                    } else {
+                        resolve(null);
+                    }
                 }
             );
-        });
-    }
+        }
+    });
+}
+
+async function loginUser(username, password) {
+    return new Promise((resolve, reject) => {
+        global.db.all(
+            `SELECT username, password, role FROM users WHERE username = "${username}"`,
+            (err, rows) => {
+                if (err) {
+                    console.error(err);
+                    resolve(null);
+                }
+                if (rows[0]) {
+                    bcrypt.compare(password, rows[0].password).then((res) => {
+                        resolve(res);
+                    });
+                }
+            }
+        );
+    });
+}
+
+async function setDBStats(
+    id,
+    score = null,
+    assists = null,
+    matches = null,
+    wins = null
+) {
+    return new Promise((resolve, reject) => {
+        try {
+            let query = "UPDATE users SET ";
+            if (score !== null) query += `score = ${score},`;
+            if (assists !== null) query += `assists = ${assists},`;
+            if (matches !== null) query += `matches = ${matches},`;
+            if (wins !== null) query += `wins = ${wins},`;
+            if (query[query.length - 1] === ",") query = query.slice(0, -1);
+            query += " WHERE id = " + id;
+
+            global.db.run(query, (err) => {
+                if (err) {
+                    console.log(err);
+                    reject(
+                        "Error al actualizar los datos en la base de datos."
+                    );
+                }
+                resolve(
+                    "Datos actualizados correctamente en la base de datos."
+                );
+            });
+        } catch (e) {
+            console.log(e);
+            reject("Error al actualizar los datos en la base de datos.");
+        }
+    });
 }
 
 function calcRating(stats) {
@@ -112,7 +185,29 @@ users.post("/getuser", (req, res) => {
     }
 });
 
-users.get("/stats", (req, res) => {
+// AUTH
+
+users.post("/auth/login", (req, res) => {
+    if (global.db) {
+        if (req.body.username && req.body.password) {
+            loginUser(req.body.username, req.body.password).then(
+                (validated) => {
+                    res.send(validated);
+                }
+            );
+        } else {
+            res.status(400).send({
+                error: "Debe enviar un username y password",
+            });
+        }
+    } else {
+        res.status(500).send("No se ha inicializado la base de datos");
+    }
+});
+
+// STATS
+
+users.get("/stats/all", (req, res) => {
     if (global.db) {
         getAllUsersStats().then((stats) => {
             stats.forEach((ps) => {
@@ -120,6 +215,54 @@ users.get("/stats", (req, res) => {
             });
             res.send({ stats: stats });
         });
+    }
+});
+
+users.post("/stats/sum", (req, res) => {
+    if (global.db) {
+        if (
+            req.body.score ||
+            req.body.assists ||
+            req.body.matches ||
+            req.body.wins
+        ) {
+            getUser(null, req.body.id).then((user) => {
+                if (user) {
+                    if (req.body.score) {
+                        setDBStats(req.body.id, user.score + req.body.score);
+                    }
+                    if (req.body.assists) {
+                        setDBStats(
+                            req.body.id,
+                            null,
+                            user.assists + req.body.assists
+                        );
+                    }
+                    if (req.body.matches) {
+                        setDBStats(
+                            req.body.id,
+                            null,
+                            null,
+                            user.matches + req.body.matches
+                        );
+                    }
+                    if (req.body.wins) {
+                        setDBStats(
+                            req.body.id,
+                            null,
+                            null,
+                            null,
+                            user.wins + req.body.wins
+                        );
+                    }
+                    res.send("OK");
+                }
+            });
+        } else {
+            res.status(400).send({
+                error: "Debe enviar score, assists, matches ó wins",
+            });
+        }
     }
 });
 
