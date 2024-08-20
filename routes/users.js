@@ -84,18 +84,36 @@ async function getUser(
     });
 }
 
-async function loginUser(username, password) {
+async function validateLogin(username, password) {
     return new Promise((resolve, reject) => {
         global.db.all(
             `SELECT username, password, role FROM users WHERE username = "${username}"`,
             (err, rows) => {
                 if (err) {
                     console.error(err);
-                    resolve(null);
+                    resolve({ validated: false, reason: "error" });
                 }
                 if (rows[0]) {
-                    bcrypt.compare(password, rows[0].password).then((res) => {
-                        resolve(res);
+                    bcrypt
+                        .compare(password, rows[0].password)
+                        .then((validated) => {
+                            if (validated) {
+                                resolve({
+                                    validated,
+                                    username,
+                                    role: rows[0].role,
+                                });
+                            } else {
+                                resolve({
+                                    validated,
+                                    reason: "password",
+                                });
+                            }
+                        });
+                } else {
+                    resolve({
+                        validated: false,
+                        reason: "user",
                     });
                 }
             }
@@ -190,11 +208,9 @@ users.post("/getuser", (req, res) => {
 users.post("/auth/login", (req, res) => {
     if (global.db) {
         if (req.body.username && req.body.password) {
-            loginUser(req.body.username, req.body.password).then(
-                (validated) => {
-                    res.send(validated);
-                }
-            );
+            validateLogin(req.body.username, req.body.password).then((obj) => {
+                res.json(obj);
+            });
         } else {
             res.status(400).send({
                 error: "Debe enviar un username y password",
