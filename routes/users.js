@@ -121,6 +121,45 @@ async function validateLogin(username, password) {
     });
 }
 
+async function registerUser(username, password) {
+    return new Promise((resolve, reject) => {
+        global.db.all(
+            `SELECT username, password FROM users WHERE username = "${username}"`,
+            (err, rows) => {
+                if (err) {
+                    console.error(err);
+                    resolve({ success: false, reason: "error" });
+                }
+                if (rows.length > 0) {
+                    resolve({ success: false, reason: "registered" });
+                } else {
+                    bcrypt.hash(password, 10).then((hash) => {
+                        global.db.run(
+                            `INSERT INTO users (username, password) VALUES ("${username}", "${hash}")`,
+                            (err) => {
+                                if (err) {
+                                    console.log(err);
+                                    resolve({
+                                        success: false,
+                                        reason: "error",
+                                    });
+                                    return;
+                                } else {
+                                    resolve({
+                                        success: true,
+                                        username,
+                                        role: 0,
+                                    });
+                                }
+                            }
+                        );
+                    });
+                }
+            }
+        );
+    });
+}
+
 async function setDBStats(
     id,
     score = null,
@@ -221,6 +260,22 @@ users.post("/auth/login", (req, res) => {
     }
 });
 
+users.post("/auth/register", (req, res) => {
+    if (global.db) {
+        if (req.body.username && req.body.password) {
+            registerUser(req.body.username, req.body.password).then((obj) => {
+                res.json(obj);
+            });
+        } else {
+            res.status(400).send({
+                error: "Debe enviar un username y password",
+            });
+        }
+    } else {
+        res.status(500).send("No se ha inicializado la base de datos");
+    }
+});
+
 // STATS
 
 users.get("/stats/all", (req, res) => {
@@ -242,21 +297,24 @@ users.post("/stats/sum", (req, res) => {
             req.body.matches ||
             req.body.wins
         ) {
-            getUser(null, req.body.id).then((user) => {
+            getUser(
+                req.body.username ? req.body.username : null,
+                req.body.id ? req.body.id : null
+            ).then((user) => {
                 if (user) {
                     if (req.body.score) {
-                        setDBStats(req.body.id, user.score + req.body.score);
+                        setDBStats(user.id, user.score + req.body.score);
                     }
                     if (req.body.assists) {
                         setDBStats(
-                            req.body.id,
+                            user.id,
                             null,
                             user.assists + req.body.assists
                         );
                     }
                     if (req.body.matches) {
                         setDBStats(
-                            req.body.id,
+                            user.id,
                             null,
                             null,
                             user.matches + req.body.matches
@@ -264,14 +322,16 @@ users.post("/stats/sum", (req, res) => {
                     }
                     if (req.body.wins) {
                         setDBStats(
-                            req.body.id,
+                            user.id,
                             null,
                             null,
                             null,
                             user.wins + req.body.wins
                         );
                     }
-                    res.send("OK");
+                    res.send({ success: "OK" });
+                } else {
+                    res.status(400).send({ error: "No existe el usuario" });
                 }
             });
         } else {
