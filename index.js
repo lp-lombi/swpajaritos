@@ -11,10 +11,6 @@ global.db = new sqlite3.Database(path.join(__dirname, "database.db"));
 app.use(express.json());
 app.use(cors());
 
-app.get("/", function (req, res) {
-    res.send("OK");
-});
-
 // routes
 
 var users = require("./routes/users");
