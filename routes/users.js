@@ -3,6 +3,8 @@ const fs = require("fs");
 const bcrypt = require("bcrypt");
 const users = express.Router();
 
+const requireApiKey = require("../apiKeyMiddleware");
+
 async function getAllUsers(cols = "id, username, role") {
     return new Promise((resolve, reject) => {
         global.db.all(`SELECT ${cols} FROM users`, (err, rows) => {
@@ -212,7 +214,7 @@ function calcRating(stats) {
     return rating;
 }
 
-users.get("/all", (req, res) => {
+users.get("/all", requireApiKey, (req, res) => {
     if (global.db) {
         getAllUsers().then((users) => {
             res.send({ users });
@@ -222,7 +224,7 @@ users.get("/all", (req, res) => {
     }
 });
 
-users.post("/getuser", (req, res) => {
+users.post("/getuser", requireApiKey, (req, res) => {
     if (global.db) {
         if (req.body.username) {
             getUser(req.body.username).then((user) => {
@@ -260,7 +262,7 @@ users.post("/auth/login", (req, res) => {
     }
 });
 
-users.post("/auth/register", (req, res) => {
+users.post("/auth/register", requireApiKey, (req, res) => {
     if (global.db) {
         if (req.body.username && req.body.password) {
             registerUser(req.body.username, req.body.password).then((obj) => {
@@ -278,7 +280,7 @@ users.post("/auth/register", (req, res) => {
 
 // STATS
 
-users.get("/stats/all", (req, res) => {
+users.get("/stats/all", requireApiKey, (req, res) => {
     if (global.db) {
         getAllUsersStats().then((stats) => {
             stats.forEach((ps) => {
@@ -289,7 +291,7 @@ users.get("/stats/all", (req, res) => {
     }
 });
 
-users.post("/stats/sum", (req, res) => {
+users.post("/stats/sum", requireApiKey, (req, res) => {
     if (global.db) {
         if (
             req.body.score ||
