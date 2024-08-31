@@ -11,7 +11,9 @@ app.use(express.json());
 app.use(cors());
 
 var users = require("./routes/users");
+var subscriptions = require("./routes/subscriptions");
 app.use("/users", users);
+app.use("/subscriptions", subscriptions);
 
 const port = 3000;
 app.listen(port);

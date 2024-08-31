@@ -49,7 +49,10 @@ module.exports = (req, res, next) => {
         if (reqApiKey && reqApiKey === global.apiKey) {
             next();
         } else {
-            console.log("Intento de acceso no autorizado");
+            console.log(
+                `Acceso sin autorización: ${req.originalUrl} - ${req.ip}`
+            );
+            console.log();
             res.status(401).json({ message: "No autorizado." });
         }
     });
