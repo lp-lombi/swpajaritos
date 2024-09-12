@@ -12,8 +12,10 @@ app.use(cors());
 
 var users = require("./routes/users");
 var subscriptions = require("./routes/subscriptions");
+var bans = require("./routes/bans");
 app.use("/users", users);
 app.use("/subscriptions", subscriptions);
+app.use("/bans", bans);
 
 const port = 3000;
 app.listen(port);
