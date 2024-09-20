@@ -19,16 +19,64 @@ async function getAllUsers(cols = "id, username, role") {
 
 async function getAllUsersStats() {
     return new Promise((resolve, reject) => {
-        global.db.all(
-            `SELECT id, username, score, assists, matches, wins FROM users WHERE score > 0 OR assists > 0`,
-            (err, rows) => {
-                if (err) {
-                    console.error(err);
-                    resolve([]);
-                }
-                resolve(rows);
-            }
-        );
+        let promises = [
+            new Promise((resolve, reject) => {
+                global.db.all(
+                    `SELECT id, username, score, assists, matches, wins FROM users WHERE score > 0 OR assists > 0`,
+                    (err, rows) => {
+                        if (err) {
+                            console.error(err);
+                            resolve([]);
+                        }
+                        resolve(rows);
+                    }
+                );
+            }),
+            new Promise((resolve, reject) => {
+                global.db.all(
+                    `SELECT id, username, score FROM users WHERE score = (SELECT MAX(score) FROM users)`,
+                    (err, rows) => {
+                        if (err) {
+                            console.error(err);
+                            resolve([]);
+                        }
+                        resolve(rows);
+                    }
+                );
+            }),
+            new Promise((resolve, reject) => {
+                global.db.all(
+                    `SELECT id, username, assists FROM users WHERE assists = (SELECT MAX(assists) FROM users)`,
+                    (err, rows) => {
+                        if (err) {
+                            console.error(err);
+                            resolve([]);
+                        }
+                        resolve(rows);
+                    }
+                );
+            }),
+            new Promise((resolve, reject) => {
+                global.db.all(
+                    `SELECT id, username, wins, matches, (wins * 1.0 / matches) AS winrate FROM users WHERE matches > 40 ORDER BY winrate DESC LIMIT 1`,
+                    (err, rows) => {
+                        if (err) {
+                            console.error(err);
+                            resolve([]);
+                        }
+                        resolve(rows);
+                    }
+                );
+            }),
+        ];
+        Promise.all(promises).then((results) => {
+            resolve({
+                stats: results[0],
+                maxScorer: results[1][0],
+                maxAssister: results[2][0],
+                maxWinrate: results[3][0],
+            });
+        });
     });
 }
 
@@ -96,39 +144,43 @@ async function validateLogin(username, password) {
                     resolve({ validated: false, reason: "error" });
                 }
                 if (rows[0]) {
-                    bcrypt.compare(password, rows[0].password).then(async (validated) => {
-                        let subscription = new Promise((resolve, reject) => {
-                            global.db.all(
-                                `SELECT tier, startDate FROM subscriptions WHERE userId = ${rows[0].id}`,
-                                (err, rows) => {
-                                    if (err) {
-                                        console.log(err);
-                                        resolve(null);
-                                    } else if (rows[0]) {
-                                        console.log(rows[0])
-                                        resolve(rows[0])
-                                    } else {
-                                        resolve(null);
-                                    }
+                    bcrypt
+                        .compare(password, rows[0].password)
+                        .then(async (validated) => {
+                            let subscription = new Promise(
+                                (resolve, reject) => {
+                                    global.db.all(
+                                        `SELECT tier, startDate FROM subscriptions WHERE userId = ${rows[0].id}`,
+                                        (err, rows) => {
+                                            if (err) {
+                                                console.log(err);
+                                                resolve(null);
+                                            } else if (rows[0]) {
+                                                console.log(rows[0]);
+                                                resolve(rows[0]);
+                                            } else {
+                                                resolve(null);
+                                            }
+                                        }
+                                    );
                                 }
                             );
-                        })
 
-                        if (validated) {
-                            resolve({
-                                validated,
-                                username,
-                                id: rows[0].id,
-                                role: rows[0].role,
-                                subscription: await subscription,
-                            });
-                        } else {
-                            resolve({
-                                validated,
-                                reason: "password",
-                            });
-                        }
-                    });
+                            if (validated) {
+                                resolve({
+                                    validated,
+                                    username,
+                                    id: rows[0].id,
+                                    role: rows[0].role,
+                                    subscription: await subscription,
+                                });
+                            } else {
+                                resolve({
+                                    validated,
+                                    reason: "password",
+                                });
+                            }
+                        });
                 } else {
                     resolve({
                         validated: false,
@@ -199,9 +251,13 @@ async function setDBStats(
             global.db.run(query, (err) => {
                 if (err) {
                     console.log(err);
-                    reject("Error al actualizar los datos en la base de datos.");
+                    reject(
+                        "Error al actualizar los datos en la base de datos."
+                    );
                 }
-                resolve("Datos actualizados correctamente en la base de datos.");
+                resolve(
+                    "Datos actualizados correctamente en la base de datos."
+                );
             });
         } catch (e) {
             console.log(e);
@@ -295,11 +351,16 @@ users.post("/auth/register", requireApiKey, (req, res) => {
 
 users.get("/stats/all", requireApiKey, (req, res) => {
     if (global.db) {
-        getAllUsersStats().then((stats) => {
-            stats.forEach((ps) => {
+        getAllUsersStats().then((data) => {
+            data.stats.forEach((ps) => {
                 ps.rating = calcRating(ps);
             });
-            res.send({ stats: stats });
+            res.send({
+                stats: data.stats,
+                maxScorer: data.maxScorer,
+                maxAssister: data.maxAssister,
+                maxWinrate: data.maxWinrate,
+            });
         });
     }
 });
@@ -321,13 +382,28 @@ users.post("/stats/sum", requireApiKey, (req, res) => {
                         setDBStats(user.id, user.score + req.body.score);
                     }
                     if (req.body.assists) {
-                        setDBStats(user.id, null, user.assists + req.body.assists);
+                        setDBStats(
+                            user.id,
+                            null,
+                            user.assists + req.body.assists
+                        );
                     }
                     if (req.body.matches) {
-                        setDBStats(user.id, null, null, user.matches + req.body.matches);
+                        setDBStats(
+                            user.id,
+                            null,
+                            null,
+                            user.matches + req.body.matches
+                        );
                     }
                     if (req.body.wins) {
-                        setDBStats(user.id, null, null, null, user.wins + req.body.wins);
+                        setDBStats(
+                            user.id,
+                            null,
+                            null,
+                            null,
+                            user.wins + req.body.wins
+                        );
                     }
                     res.send({ success: "OK" });
                 } else {
