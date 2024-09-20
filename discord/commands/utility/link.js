@@ -1,21 +1,48 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { webApi } = require("../../config.json");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("link")
         .setDescription("Muestra los links de las salas abiertas."),
     async execute(interaction) {
-        if (
-            !global.roomsList ||
-            (global.roomsList && !global.roomsList.length)
-        ) {
-            await interaction.reply("No hay salas abiertas.");
-        } else {
-            let str = "**Salas abiertas:**\n\n--\n";
-            global.roomsList.forEach((r) => {
-                str += `- **${r.name}**\n ${r.players}/${r.maxPlayers} jugadores - ${r.link}\n--\n`;
-            });
-            await interaction.reply(str);
+        if (webApi && webApi.url && webApi.key) {
+            fetch(webApi.url + "/rooms/all", {
+                headers: {
+                    "x-api-key": webApi.key,
+                },
+            })
+                .then((res) => {
+                    if (res.ok) return res.json();
+                    else console.log(res.statusText);
+                })
+                .then(async (data) => {
+                    if (data.rooms && data.rooms.length) {
+                        const embed = new EmbedBuilder()
+                            .setColor(0xf48414)
+                            .setTitle("Salas abiertas")
+                            .addFields({ name: "\u200B", value: "\u200B" })
+                            .setTimestamp()
+                            .setFooter({
+                                text: "VIVA LA COMBA",
+                            });
+                        data.rooms.forEach((r) => {
+                            embed
+                                .addFields({
+                                    name: `${r.name}`,
+                                    value: `${r.players}/${r.maxPlayers} jugadores - ${r.link}\n`,
+                                })
+                                .addFields({ name: "\u200B", value: "\u200B" });
+                        });
+
+                        await interaction.reply({ embeds: [embed] });
+                    } else {
+                        await interaction.reply("No hay salas abiertas.");
+                    }
+                })
+                .catch((err) => {
+                    console.log(err);
+                });
         }
     },
 };
