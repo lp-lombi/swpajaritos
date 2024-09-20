@@ -64,7 +64,7 @@ module.exports = {
                                 )
                                 .setTimestamp()
                                 .setFooter({
-                                    text: "Some footer text here",
+                                    text: "VIVA LA COMBA",
                                 });
 
                             await interaction.reply({ embeds: [exampleEmbed] });
