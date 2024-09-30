@@ -48,4 +48,28 @@ bans.post("/new", requireApiKey, (req, res) => {
     }
 });
 
+bans.delete("/:id", requireApiKey, (req, res) => {
+    if (global.db) {
+        if (req.params.id || !isNaN(req.params.id)) {
+            let id = parseInt(req.params.id);
+            global.db.run(`DELETE FROM bans WHERE id = ${id}`, (err) => {
+                if (err) {
+                    console.log(err);
+                    res.send({ success: false, reason: "error" });
+                    return;
+                } else {
+                    res.send({ success: true });
+                }
+            });
+        } else {
+            res.status(400).send({
+                success: false,
+                error: "ID inválida",
+            });
+        }
+    } else {
+        res.status(500).send("No se ha inicializado la base de datos");
+    }
+});
+
 module.exports = bans;
