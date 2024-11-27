@@ -1,5 +1,4 @@
 const express = require("express");
-const fs = require("fs");
 const bcrypt = require("bcrypt");
 const users = express.Router();
 
@@ -80,164 +79,131 @@ async function getAllUsersStats() {
     });
 }
 
-async function getUser(
-    username = null,
-    id = null,
-    cols = "id, username, role, score, assists, matches, wins"
-) {
+async function getUser(username = null, id = null, cols = "id, username, role, score, assists, matches, wins") {
     return new Promise((resolve, reject) => {
         if (username) {
-            global.db.all(
-                `SELECT ${cols} FROM users WHERE username = "${username}"`,
-                (err, rows) => {
-                    if (err) {
-                        console.error(err);
-                        resolve(null);
-                    }
-                    let p = rows[0];
-                    if (p) {
-                        p.rating = calcRating({
-                            score: p.score,
-                            assists: p.assists,
-                            matches: p.matches,
-                            wins: p.wins,
-                        });
-                        resolve(p);
-                    } else {
-                        resolve(null);
-                    }
+            global.db.all(`SELECT ${cols} FROM users WHERE username = "${username}"`, (err, rows) => {
+                if (err) {
+                    console.error(err);
+                    resolve(null);
                 }
-            );
+                let p = rows[0];
+                if (p) {
+                    p.rating = calcRating({
+                        score: p.score,
+                        assists: p.assists,
+                        matches: p.matches,
+                        wins: p.wins,
+                    });
+                    resolve(p);
+                } else {
+                    resolve(null);
+                }
+            });
         } else if (id) {
-            global.db.all(
-                `SELECT ${cols} FROM users WHERE id = ${id}`,
-                (err, rows) => {
-                    if (err) {
-                        console.error(err);
-                        resolve(null);
-                    }
-                    let p = rows[0];
-                    if (p) {
-                        p.rating = calcRating({
-                            score: p.score,
-                            assists: p.assists,
-                            matches: p.matches,
-                            wins: p.wins,
-                        });
-                        resolve(p);
-                    } else {
-                        resolve(null);
-                    }
+            global.db.all(`SELECT ${cols} FROM users WHERE id = ${id}`, (err, rows) => {
+                if (err) {
+                    console.error(err);
+                    resolve(null);
                 }
-            );
+                let p = rows[0];
+                if (p) {
+                    p.rating = calcRating({
+                        score: p.score,
+                        assists: p.assists,
+                        matches: p.matches,
+                        wins: p.wins,
+                    });
+                    resolve(p);
+                } else {
+                    resolve(null);
+                }
+            });
         }
     });
 }
 
 async function validateLogin(username, password) {
     return new Promise((resolve, reject) => {
-        global.db.all(
-            `SELECT id, username, password, role FROM users WHERE username = "${username}"`,
-            (err, rows) => {
-                if (err) {
-                    console.error(err);
-                    resolve({ validated: false, reason: "error" });
-                }
-                if (rows[0]) {
-                    bcrypt
-                        .compare(password, rows[0].password)
-                        .then(async (validated) => {
-                            let subscription = new Promise(
-                                (resolve, reject) => {
-                                    global.db.all(
-                                        `SELECT tier, startDate FROM subscriptions WHERE userId = ${rows[0].id}`,
-                                        (err, rows) => {
-                                            if (err) {
-                                                console.log(err);
-                                                resolve(null);
-                                            } else if (rows[0]) {
-                                                console.log(rows[0]);
-                                                resolve(rows[0]);
-                                            } else {
-                                                resolve(null);
-                                            }
-                                        }
-                                    );
-                                }
-                            );
-
-                            if (validated) {
-                                resolve({
-                                    validated,
-                                    username,
-                                    id: rows[0].id,
-                                    role: rows[0].role,
-                                    subscription: await subscription,
-                                });
+        global.db.all(`SELECT id, username, password, role FROM users WHERE username = "${username}"`, (err, rows) => {
+            if (err) {
+                console.error(err);
+                resolve({ validated: false, reason: "error" });
+            }
+            if (rows[0]) {
+                bcrypt.compare(password, rows[0].password).then(async (validated) => {
+                    let subscription = new Promise((resolve, reject) => {
+                        global.db.all(`SELECT * FROM subscriptions WHERE userId = ${rows[0].id}`, (err, rows) => {
+                            if (err) {
+                                console.log(err);
+                                resolve(null);
+                            } else if (rows[0]) {
+                                resolve(rows[0]);
                             } else {
-                                resolve({
-                                    validated,
-                                    reason: "password",
-                                });
+                                resolve(null);
                             }
                         });
-                } else {
-                    resolve({
-                        validated: false,
-                        reason: "user",
                     });
-                }
+
+                    if (validated) {
+                        resolve({
+                            validated,
+                            username,
+                            id: rows[0].id,
+                            role: rows[0].role,
+                            subscription: await subscription,
+                        });
+                    } else {
+                        resolve({
+                            validated,
+                            reason: "password",
+                        });
+                    }
+                });
+            } else {
+                resolve({
+                    validated: false,
+                    reason: "user",
+                });
             }
-        );
+        });
     });
 }
 
 async function registerUser(username, password) {
     return new Promise((resolve, reject) => {
-        global.db.all(
-            `SELECT username, password FROM users WHERE username = "${username}"`,
-            (err, rows) => {
-                if (err) {
-                    console.error(err);
-                    resolve({ success: false, reason: "error" });
-                }
-                if (rows.length > 0) {
-                    resolve({ success: false, reason: "registered" });
-                } else {
-                    bcrypt.hash(password, 10).then((hash) => {
-                        global.db.run(
-                            `INSERT INTO users (username, password) VALUES ("${username}", "${hash}")`,
-                            (err) => {
-                                if (err) {
-                                    console.log(err);
-                                    resolve({
-                                        success: false,
-                                        reason: "error",
-                                    });
-                                    return;
-                                } else {
-                                    resolve({
-                                        success: true,
-                                        username,
-                                        role: 0,
-                                    });
-                                }
-                            }
-                        );
-                    });
-                }
+        global.db.all(`SELECT username, password FROM users WHERE username = "${username}"`, (err, rows) => {
+            if (err) {
+                console.error(err);
+                resolve({ success: false, reason: "error" });
             }
-        );
+            if (rows.length > 0) {
+                resolve({ success: false, reason: "registered" });
+            } else {
+                bcrypt.hash(password, 10).then((hash) => {
+                    global.db.run(`INSERT INTO users (username, password) VALUES ("${username}", "${hash}")`, (err) => {
+                        if (err) {
+                            console.log(err);
+                            resolve({
+                                success: false,
+                                reason: "error",
+                            });
+                            return;
+                        } else {
+                            resolve({
+                                success: true,
+                                username,
+                                role: 0,
+                            });
+                        }
+                    });
+                });
+            }
+        });
     });
 }
 
-async function setDBStats(
-    id,
-    score = null,
-    assists = null,
-    matches = null,
-    wins = null
-) {
+async function setDBStats(id, score = null, assists = null, matches = null, wins = null) {
     return new Promise((resolve, reject) => {
         try {
             let query = "UPDATE users SET ";
@@ -251,13 +217,9 @@ async function setDBStats(
             global.db.run(query, (err) => {
                 if (err) {
                     console.log(err);
-                    reject(
-                        "Error al actualizar los datos en la base de datos."
-                    );
+                    reject("Error al actualizar los datos en la base de datos.");
                 }
-                resolve(
-                    "Datos actualizados correctamente en la base de datos."
-                );
+                resolve("Datos actualizados correctamente en la base de datos.");
             });
         } catch (e) {
             console.log(e);
@@ -367,43 +329,20 @@ users.get("/stats/all", requireApiKey, (req, res) => {
 
 users.post("/stats/sum", requireApiKey, (req, res) => {
     if (global.db) {
-        if (
-            req.body.score ||
-            req.body.assists ||
-            req.body.matches ||
-            req.body.wins
-        ) {
-            getUser(
-                req.body.username ? req.body.username : null,
-                req.body.id ? req.body.id : null
-            ).then((user) => {
+        if (req.body.score || req.body.assists || req.body.matches || req.body.wins) {
+            getUser(req.body.username ? req.body.username : null, req.body.id ? req.body.id : null).then((user) => {
                 if (user) {
                     if (req.body.score) {
                         setDBStats(user.id, user.score + req.body.score);
                     }
                     if (req.body.assists) {
-                        setDBStats(
-                            user.id,
-                            null,
-                            user.assists + req.body.assists
-                        );
+                        setDBStats(user.id, null, user.assists + req.body.assists);
                     }
                     if (req.body.matches) {
-                        setDBStats(
-                            user.id,
-                            null,
-                            null,
-                            user.matches + req.body.matches
-                        );
+                        setDBStats(user.id, null, null, user.matches + req.body.matches);
                     }
                     if (req.body.wins) {
-                        setDBStats(
-                            user.id,
-                            null,
-                            null,
-                            null,
-                            user.wins + req.body.wins
-                        );
+                        setDBStats(user.id, null, null, null, user.wins + req.body.wins);
                     }
                     res.send({ success: "OK" });
                 } else {

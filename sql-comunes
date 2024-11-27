@@ -1,0 +1,15 @@
+## REINICIAR LAS STATS DE TODOS
+
+UPDATE users SET score = 0, assists = 0, matches = 0, wins = 0;
+
+
+
+## AGREGAR UN VIP
+
+INSERT INTO subscriptions(userId, tier, startDate) values (1, 1, "2024-11-07 00:00:00");
+
+
+
+## VER LOS VIPS
+
+SELECT u.username, s.tier, s.startDate FROM users u INNER JOIN subscriptions s ON s.userID = u.id;

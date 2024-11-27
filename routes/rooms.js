@@ -18,7 +18,6 @@ rooms.get("/all", requireApiKey, (req, res) => {
 });
 
 rooms.post("/add", requireApiKey, (req, res) => {
-    console.log(req.body);
     if (req.body.name && req.body.link) {
         let room = global.roomsList.find((r) => r.link === req.body.link);
         if (room) {
