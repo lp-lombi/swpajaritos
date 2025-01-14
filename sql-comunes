@@ -1,15 +1,25 @@
 ## REINICIAR LAS STATS DE TODOS
 
-UPDATE users SET score = 0, assists = 0, matches = 0, wins = 0;
+`UPDATE users SET score = 0, assists = 0, matches = 0, wins = 0;`
 
+## MOSTRAR LOS VIPS DE FORMA ORDENADA 
+(solo los muestra, es una consulta sobre un tipo de tabla dinámica llamada **view**)
 
+`SELECT * FROM vw_subs;`
 
-## AGREGAR UN VIP
+## MOSTRAR LOS STATS DE FORMA ORDENADA
 
-INSERT INTO subscriptions(userId, tier, startDate) values (1, 1, "2024-11-07 00:00:00");
+`SELECT * FROM vw_stats;`
 
+## MOSTRAR LOS ADMINS
 
+`SELECT * FROM vw_admins;` 
 
-## VER LOS VIPS
+## AGREGAR UN VIP 
+(ahora solo reemplazando el nombre de usuario directamente)
 
-SELECT u.username, s.tier, s.startDate FROM users u INNER JOIN subscriptions s ON s.userID = u.id;
+`INSERT INTO subscriptions(userId, tier, startDate) SELECT id, 1, "2025-01-13 00:00:00" FROM users WHERE username = "Bochini";`
+
+## ELIMINAR UN VIP
+
+`delete from subscriptions where userID = (SELECT id FROM users WHERE username = "Bochini");`
