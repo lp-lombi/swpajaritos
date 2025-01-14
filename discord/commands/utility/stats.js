@@ -2,9 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const { webApi } = require("../../config.json");
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName("stats")
-        .setDescription("Muestra los stats."),
+    data: new SlashCommandBuilder().setName("stats").setDescription("Muestra los stats."),
     async execute(interaction) {
         if (webApi && webApi.url && webApi.key) {
             fetch(webApi.url + "/users/stats/all", {
@@ -22,15 +20,9 @@ module.exports = {
 
                                 let top = 15;
                                 let statsStr = "";
-                                for (
-                                    let i = 1;
-                                    i < top && i < data.stats.length;
-                                    i++
-                                ) {
+                                for (let i = 1; i < top && i < data.stats.length; i++) {
                                     let stat = data.stats[i];
-                                    statsStr += `${i + 1}. **${
-                                        stat.username
-                                    }:** - ${stat.rating}\n`;
+                                    statsStr += `${i + 1}. **${stat.username}:** - ${stat.rating}\n`;
                                 }
 
                                 const embed = new EmbedBuilder()
@@ -55,9 +47,7 @@ module.exports = {
                                         },
                                         {
                                             name: "Mayor winrate",
-                                            value: `${
-                                                data.maxWinrate.username
-                                            } (${data.maxWinrate.winrate.toFixed(
+                                            value: `${data.maxWinrate?.username} (${data.maxWinrate?.winrate.toFixed(
                                                 3
                                             )})`,
                                             inline: true,
@@ -70,9 +60,7 @@ module.exports = {
 
                                 await interaction.reply({ embeds: [embed] });
                             } else {
-                                await interaction.reply(
-                                    "Por algún extraño motivo no hay stats."
-                                );
+                                await interaction.reply("Por algún extraño motivo no hay stats.");
                             }
                         });
                     } else {
