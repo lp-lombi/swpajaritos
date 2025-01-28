@@ -190,10 +190,21 @@ async function registerUser(username, password) {
                             });
                             return;
                         } else {
-                            resolve({
-                                success: true,
-                                username,
-                                role: 0,
+                            global.db.all(`SELECT id FROM users WHERE username = "${username}"`, (err, rows) => {
+                                if (!err && rows[0]?.id) {
+                                    resolve({
+                                        id: rows[0].id,
+                                        success: true,
+                                        username,
+                                        role: 0,
+                                    });
+                                } else {
+                                    console.log(err);
+                                    resolve({
+                                        success: false,
+                                        reason: "error",
+                                    });
+                                }
                             });
                         }
                     });
