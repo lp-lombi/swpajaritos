@@ -48,12 +48,12 @@ subscriptions.post("/new", requireApiKey, (req, res) => {
 });
 
 subscriptions.patch("/:userId", requireApiKey, (req, res) => {
-    console.log(req.body);
-    const { scoreAnimId, scoreMessage, assistMessage } = req.body;
+    const { scoreAnimId, scoreMessage, assistMessage, emoji } = req.body;
     const fields = [];
     if (scoreAnimId !== undefined) fields.push({ scoreAnimId });
     if (scoreMessage !== undefined) fields.push({ scoreMessage });
     if (assistMessage !== undefined) fields.push({ assistMessage });
+    if (emoji !== undefined) fields.push({ emoji });
     let sql = `UPDATE subscriptions SET `;
     fields.forEach((field, i) => {
         sql += `${Object.keys(field)[0]} = "${Object.values(field)[0]}"`;
