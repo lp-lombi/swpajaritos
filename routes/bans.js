@@ -3,12 +3,26 @@ const bans = express.Router();
 
 const requireApiKey = require("../apiKeyMiddleware");
 
-bans.get("/all", requireApiKey, (req, res) => {
+bans.get("/", requireApiKey, (req, res) => {
     if (global.db) {
-        global.db.all(`SELECT * FROM bans`, (err, rows) => {
+        let sql = `SELECT * FROM bans`;
+        const queryList = [];
+
+        if (req.query.byId && !isNaN(req.query.byId)) {
+            queryList.push(`byId = ${req.query.byId}`);
+        }
+        if (req.query.isPermanent) {
+            queryList.push(`isPermanent = ${req.query.isPermanent}`);
+        }
+
+        if (queryList.length > 0) {
+            sql += ` WHERE ${queryList.join(" AND ")}`;
+        }
+
+        global.db.all(sql, (err, rows) => {
             if (err) {
                 console.log(err);
-                return;
+                res.status(500).send("Error al obtener los datos de la base de datos");
             } else {
                 res.send(rows);
             }
@@ -18,15 +32,24 @@ bans.get("/all", requireApiKey, (req, res) => {
     }
 });
 
-bans.post("/new", requireApiKey, (req, res) => {
+bans.post("/", requireApiKey, (req, res) => {
     if (global.db) {
-        if (
-            (req.body.name || req.body.name === "") &&
-            (req.body.ip || req.body.ip === "") &&
-            (req.body.auth || req.body.auth === "")
-        ) {
+        var { byId, userId, name, ip, auth, isPermanent } = req.body;
+
+        byId = byId || null;
+        userId = userId || null;
+        name = name || "";
+        ip = ip || null;
+        auth = auth || null;
+        isPermanent = isPermanent || false;
+
+        console.log(
+            `INSERT INTO bans (byId, userId, name, ip, auth, isPermanent) VALUES (${byId}, ${userId}, "${name}", "${ip}", "${auth}", ${isPermanent})`
+        );
+
+        if (byId && ip) {
             global.db.run(
-                `INSERT INTO bans (name, ip, auth) VALUES ("${req.body.name}", "${req.body.ip}", "${req.body.auth}")`,
+                `INSERT INTO bans (byId, userId, name, ip, auth, isPermanent) VALUES (${byId}, ${userId}, "${name}", "${ip}", "${auth}", ${isPermanent})`,
                 (err) => {
                     if (err) {
                         console.log(err);
@@ -40,7 +63,7 @@ bans.post("/new", requireApiKey, (req, res) => {
         } else {
             res.status(400).send({
                 success: false,
-                error: "need name, ip and auth",
+                error: "Faltan campos para crear el ban",
             });
         }
     } else {
