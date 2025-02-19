@@ -43,11 +43,7 @@ bans.post("/", requireApiKey, (req, res) => {
         auth = auth || null;
         isPermanent = isPermanent || false;
 
-        console.log(
-            `INSERT INTO bans (byId, userId, name, ip, auth, isPermanent) VALUES (${byId}, ${userId}, "${name}", "${ip}", "${auth}", ${isPermanent})`
-        );
-
-        if (byId && ip) {
+        if (ip) {
             global.db.run(
                 `INSERT INTO bans (byId, userId, name, ip, auth, isPermanent) VALUES (${byId}, ${userId}, "${name}", "${ip}", "${auth}", ${isPermanent})`,
                 (err) => {
@@ -63,7 +59,7 @@ bans.post("/", requireApiKey, (req, res) => {
         } else {
             res.status(400).send({
                 success: false,
-                error: "Faltan campos para crear el ban",
+                error: "Falta una IP para crear el ban",
             });
         }
     } else {
