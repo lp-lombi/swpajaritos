@@ -20,40 +20,31 @@ async function getAllUsersStats() {
     return new Promise((resolve, reject) => {
         let promises = [
             new Promise((resolve, reject) => {
-                global.db.all(
-                    `SELECT id, username, score, assists, matches, wins FROM users WHERE score > 0 OR assists > 0`,
-                    (err, rows) => {
-                        if (err) {
-                            console.error(err);
-                            resolve([]);
-                        }
-                        resolve(rows);
+                global.db.all(`SELECT id, username, score, assists, matches, wins FROM users WHERE score > 0 OR assists > 0`, (err, rows) => {
+                    if (err) {
+                        console.error(err);
+                        resolve([]);
                     }
-                );
+                    resolve(rows);
+                });
             }),
             new Promise((resolve, reject) => {
-                global.db.all(
-                    `SELECT id, username, score FROM users WHERE score = (SELECT MAX(score) FROM users)`,
-                    (err, rows) => {
-                        if (err) {
-                            console.error(err);
-                            resolve([]);
-                        }
-                        resolve(rows);
+                global.db.all(`SELECT id, username, score FROM users WHERE score = (SELECT MAX(score) FROM users)`, (err, rows) => {
+                    if (err) {
+                        console.error(err);
+                        resolve([]);
                     }
-                );
+                    resolve(rows);
+                });
             }),
             new Promise((resolve, reject) => {
-                global.db.all(
-                    `SELECT id, username, assists FROM users WHERE assists = (SELECT MAX(assists) FROM users)`,
-                    (err, rows) => {
-                        if (err) {
-                            console.error(err);
-                            resolve([]);
-                        }
-                        resolve(rows);
+                global.db.all(`SELECT id, username, assists FROM users WHERE assists = (SELECT MAX(assists) FROM users)`, (err, rows) => {
+                    if (err) {
+                        console.error(err);
+                        resolve([]);
                     }
-                );
+                    resolve(rows);
+                });
             }),
             new Promise((resolve, reject) => {
                 global.db.all(
@@ -246,12 +237,7 @@ function calcRating(stats) {
     const matchWeight = -3; // Peso de cada partido jugado (penalización para evitar inflar la puntuación solo por jugar muchos partidos)
     const winWeight = 6; // Peso de cada victoria
 
-    const rating =
-        baseScore +
-        stats.score * scoreWeight +
-        stats.assists * assistWeight +
-        stats.matches * matchWeight +
-        stats.wins * winWeight;
+    const rating = baseScore + stats.score * scoreWeight + stats.assists * assistWeight + stats.matches * matchWeight + stats.wins * winWeight;
 
     return rating;
 }
